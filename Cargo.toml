@@ -1,0 +1,28 @@
+[package]
+name = "chess_bevy"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = { version = "0.14.2", features = ["dynamic_linking"] }
+bevy-inspector-egui = "0.26.0"
+bevy-ui-dsl = "0.9.0"
+log = { version = "*", features = ["max_level_debug", "release_max_level_warn"] }
+
+[features]
+world-inspector = []
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = "s"
+strip = "debuginfo"
