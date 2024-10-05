@@ -1,9 +1,8 @@
 use bevy::prelude::*;
-use bevy_ui_dsl::*;
 
 use super::GameState;
 use crate::ui::button::InteractiveButton;
-use crate::ui::classes::*;
+use crate::ui::widgets::*;
 
 #[derive(Component, PartialEq, Eq)]
 pub enum Button {
@@ -11,14 +10,8 @@ pub enum Button {
 }
 
 pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    root(c_root, &asset_server, &mut commands, |p| {
-        text_buttoni(
-            "Go back",
-            c_button,
-            (c_text_black, c_text_h2),
-            (Button::GoBack, InteractiveButton),
-            p,
-        );
+    w_root((), &asset_server, &mut commands, (), |p| {
+        w_text_button("Go back", (), (), (Button::GoBack, InteractiveButton), p);
     });
 }
 

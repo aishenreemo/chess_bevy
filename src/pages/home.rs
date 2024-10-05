@@ -1,9 +1,8 @@
 use bevy::prelude::*;
-use bevy_ui_dsl::*;
 
 use super::GameState;
 use crate::ui::button::InteractiveButton;
-use crate::ui::classes::*;
+use crate::ui::widgets::*;
 
 #[derive(Component, PartialEq, Eq)]
 pub enum Button {
@@ -12,22 +11,10 @@ pub enum Button {
 }
 
 pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    root(c_root, &asset_server, &mut commands, |p| {
-        text("Chess", c_text, (c_text_white, c_text_kose, c_text_h1), p);
-        text_buttoni(
-            "Play",
-            c_button,
-            (c_text_black, c_text_kose, c_text_h2),
-            (Button::Play, InteractiveButton),
-            p,
-        );
-        text_buttoni(
-            "Quit",
-            c_button,
-            (c_text_black, c_text_kose, c_text_h2),
-            (Button::Quit, InteractiveButton),
-            p,
-        );
+    w_root((), &asset_server, &mut commands, (), |p| {
+        w_text("Chess", (), (), (), p);
+        w_text_button("Play", (), (), (Button::Play, InteractiveButton), p);
+        w_text_button("Quit", (), (), (Button::Quit, InteractiveButton), p);
     });
 }
 
