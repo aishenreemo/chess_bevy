@@ -4,6 +4,7 @@ mod play;
 use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
 
+use crate::chess::ChessBoard;
 use crate::ui::button::ButtonInteractivePlugin;
 
 #[derive(States, PartialEq, Eq, Clone, Copy, Default, Hash, Debug)]
@@ -23,16 +24,24 @@ impl Plugin for PagesPlugin {
 
         app.add_systems(OnEnter(Home), home::setup);
         app.add_systems(Update, home::button_system);
-        app.add_systems(OnExit(Home), despawn_ui);
+        app.add_systems(OnExit(Home), despawn_all);
 
         app.add_systems(OnEnter(Play), play::setup);
         app.add_systems(Update, play::button_system);
-        app.add_systems(OnExit(Play), despawn_ui);
+        app.add_systems(OnExit(Play), despawn_all);
     }
 }
 
-fn despawn_ui(mut commands: Commands, query: Query<Entity, With<Node>>) {
-    for entity in query.iter() {
+fn despawn_all(
+    mut commands: Commands,
+    ui_entities: Query<Entity, With<Node>>,
+    other_entities: Query<Entity, With<ChessBoard>>,
+) {
+    for entity in ui_entities.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    for entity in other_entities.iter() {
         commands.entity(entity).despawn();
     }
 }

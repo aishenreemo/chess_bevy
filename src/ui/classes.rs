@@ -10,6 +10,17 @@ pub fn c_root(n: &mut NodeBundle) {
     s.row_gap = Val::Px(25.);
 }
 
+pub fn c_root_part(n: &mut NodeBundle) {
+    let s = &mut n.style;
+    s.width = Val::Percent(20.);
+    s.height = Val::Percent(100.);
+    s.align_items = AlignItems::Center;
+    s.justify_content = JustifyContent::FlexEnd;
+    s.flex_direction = FlexDirection::Column;
+    s.row_gap = Val::Px(7.);
+    s.padding = UiRect::all(Val::Px(10.));
+}
+
 pub fn c_text(_: &AssetServer, t: &mut TextBundle) {
     t.style.margin = UiRect::all(Val::Px(10.));
 }
@@ -34,6 +45,10 @@ pub fn c_text_h2(_: &AssetServer, s: &mut TextStyle) {
     s.font_size = 64.;
 }
 
+pub fn c_text_normal(_: &AssetServer, s: &mut TextStyle) {
+    s.font_size = 18.;
+}
+
 pub fn c_button(_: &AssetServer, b: &mut ButtonBundle) {
     let s = &mut b.style;
 
@@ -44,4 +59,11 @@ pub fn c_button(_: &AssetServer, b: &mut ButtonBundle) {
     s.border = UiRect::all(Val::Px(1.0));
     b.background_color = Color::WHITE.into();
     b.border_color = Color::NONE.into();
+}
+
+pub fn c_button_small(_: &AssetServer, b: &mut ButtonBundle) {
+    let s = &mut b.style;
+
+    s.width = Val::Px(100.);
+    s.height = Val::Px(40.);
 }
