@@ -6,11 +6,12 @@ use bevy::prelude::*;
 
 use crate::chess::ChessBoard;
 use crate::ui::button::ButtonInteractivePlugin;
+use crate::ui::palette::ColorPalettePlugin;
 
 #[derive(States, PartialEq, Eq, Clone, Copy, Default, Hash, Debug)]
 pub enum GameState {
-    #[default]
     Home,
+    #[default]
     Play,
 }
 
@@ -28,21 +29,22 @@ impl Plugin for PagesPlugin {
 
         app.add_systems(OnEnter(Play), play::setup);
         app.add_systems(Update, play::button_system);
+        app.add_systems(Update, play::drag_system);
         app.add_systems(OnExit(Play), despawn_all);
     }
 }
 
 fn despawn_all(
     mut commands: Commands,
-    ui_entities: Query<Entity, With<Node>>,
-    other_entities: Query<Entity, With<ChessBoard>>,
+    nodes: Query<Entity, With<Node>>,
+    chessboards: Query<Entity, With<ChessBoard>>,
 ) {
-    for entity in ui_entities.iter() {
+    for entity in nodes.iter() {
         commands.entity(entity).despawn();
     }
 
-    for entity in other_entities.iter() {
-        commands.entity(entity).despawn();
+    for entity in chessboards.iter() {
+        commands.entity(entity).despawn_recursive();
     }
 }
 
@@ -52,6 +54,7 @@ impl PluginGroup for CorePlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(ButtonInteractivePlugin)
+            .add(ColorPalettePlugin)
             .add(PagesPlugin)
     }
 }

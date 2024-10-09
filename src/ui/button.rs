@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use super::palette::ColorPalette;
+
 pub struct ButtonInteractivePlugin;
 
 impl Plugin for ButtonInteractivePlugin {
@@ -22,23 +24,24 @@ fn button_system(
         (Changed<Interaction>, With<InteractiveButton>),
     >,
     mut texts: Query<&mut Text>,
+    palette: Res<ColorPalette>,
 ) {
     for (interaction, mut bg_color, mut border_color, children) in &mut buttons {
         let mut text = texts.get_mut(children[0]).unwrap();
         match interaction {
             Interaction::Pressed => {
-                text.sections[0].style.color = Color::srgb(0., 9., 0.);
-                border_color.0 = Color::srgb(0., 9., 0.);
+                text.sections[0].style.color = palette.orange.into();
+                border_color.0 = palette.orange.into();
             }
             Interaction::Hovered => {
-                text.sections[0].style.color = Color::WHITE;
-                *bg_color = Color::BLACK.into();
-                border_color.0 = Color::WHITE.into();
+                text.sections[0].style.color = palette.white.into();
+                *bg_color = palette.black.into();
+                border_color.0 = palette.white.into();
             }
             Interaction::None => {
-                text.sections[0].style.color = Color::BLACK;
+                text.sections[0].style.color = palette.black.into();
                 border_color.0 = Color::NONE.into();
-                *bg_color = Color::WHITE.into();
+                *bg_color = palette.white.into();
             }
         }
     }

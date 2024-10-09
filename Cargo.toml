@@ -4,9 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = { version = "0.14.2", features = ["dynamic_linking"] }
+bevy = { version = "0.14.2", features = ["dynamic_linking", "png"] }
 bevy-inspector-egui = "0.26.0"
-bevy-ui-dsl = "0.9.0"
 log = { version = "*", features = ["max_level_debug", "release_max_level_warn"] }
 
 [features]

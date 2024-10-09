@@ -3,8 +3,8 @@ mod pages;
 mod ui;
 
 use bevy::prelude::*;
-use bevy::winit::WinitSettings;
 use pages::CorePlugins;
+use ui::palette::ColorPalette;
 
 fn main() {
     let mut app = App::new();
@@ -23,7 +23,7 @@ fn main() {
         ..default()
     };
 
-    app.add_plugins(DefaultPlugins.set(plugin));
+    app.add_plugins(DefaultPlugins.set(plugin).set(ImagePlugin::default_nearest()));
     app.add_plugins(CorePlugins);
 
     app.add_systems(PreStartup, setup);
@@ -34,12 +34,15 @@ fn main() {
         app.add_plugins(WorldInspectorPlugin::new());
     }
 
-    app.insert_resource(ClearColor(Color::hsl(0., 1., 0.)))
-        .insert_resource(WinitSettings::desktop_app());
-
     app.run();
 }
 
-fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
+fn setup(mut commands: Commands, palette: Res<ColorPalette>) {
+    commands.spawn(Camera2dBundle {
+        camera: Camera {
+            clear_color: palette.black.into(),
+            ..default()
+        },
+        ..default()
+    });
 }
