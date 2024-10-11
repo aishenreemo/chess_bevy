@@ -3,7 +3,8 @@ use bevy::window::PrimaryWindow;
 
 use super::GameState;
 use crate::chess::ChessBoard;
-use crate::chess::ChessPosition;
+use crate::chess::ChessBoardBundle;
+use crate::chess::ChessBoardSize;
 use crate::chess::PieceColor;
 use crate::ui::button::InteractiveButton;
 use crate::ui::palette::ColorPalette;
@@ -13,13 +14,14 @@ pub enum Button {
     Back,
 }
 
-#[derive(Component, Default)]
-pub struct Draggable {
-    dragging: bool,
-}
+#[derive(Component, Debug)]
+pub struct ChessBoardSquare;
 
 #[derive(Component)]
-pub struct Target;
+pub struct ChessBoardPiece;
+
+#[derive(Component)]
+pub struct MovingPiece;
 
 pub fn button_system(
     mut buttons: Query<&Interaction, (With<Button>, Changed<Interaction>)>,
@@ -35,72 +37,135 @@ pub fn button_system(
     }
 }
 
-pub fn drag_system(
+pub fn pick_system(
     mut commands: Commands,
-    mut pieces: Query<(Entity, &Parent, &mut Transform, &mut Draggable), Without<Target>>,
     buttons: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
-    targets: Query<(Entity, &Transform, &Sprite), With<Target>>,
+    chessboards: Query<&Children, With<ChessBoard>>,
+    squares: Query<(&Transform, &Sprite, &Children), With<ChessBoardSquare>>,
+    pieces: Query<Entity, With<ChessBoardPiece>>,
 ) {
+    if !buttons.just_pressed(MouseButton::Left) {
+        return;
+    }
+
     let Some(mut cursor_position) = windows.single().cursor_position() else {
         return;
     };
-
     cursor_position -= windows.single().resolution.size() / 2.;
     cursor_position.y = -cursor_position.y;
 
-    if buttons.just_pressed(MouseButton::Left) {
-        for (_, parent, _, mut draggable) in pieces.iter_mut() {
-            let Ok((_, transform, sprite)) = targets.get(parent.get()) else {
-                continue;
-            };
+    let Ok(chessboard_squares) = chessboards.get_single() else {
+        return;
+    };
 
-            let position = transform.translation.truncate();
-            let size = sprite.custom_size.unwrap();
-            let rect = Rect::from_center_size(position, size);
+    for &child in chessboard_squares.iter() {
+        let Ok((transform, sprite, children)) = squares.get(child) else {
+            continue;
+        };
 
-            if rect.contains(cursor_position) {
-                draggable.dragging = true;
-                break;
-            }
+        let position = transform.translation.truncate();
+        let size = sprite.custom_size.unwrap();
+        let rect = Rect::from_center_size(position, size);
+
+        if !rect.contains(cursor_position) {
+            continue;
         }
-    } else if buttons.pressed(MouseButton::Left) {
-        for (_, parent, mut transform, draggable) in pieces.iter_mut() {
-            let Ok((_, parent_transform, _)) = targets.get(parent.get()) else {
-                continue;
-            };
 
-            let parent_position = parent_transform.translation.truncate();
+        let Some(&child) = children.iter().next() else {
+            break;
+        };
 
-            if draggable.dragging {
-                transform.translation = Vec3::new(
-                    cursor_position.x - parent_position.x,
-                    cursor_position.y - parent_position.y,
-                    transform.translation.z,
-                );
-            }
+        let Ok(piece) = pieces.get(child) else {
+            continue;
+        };
+
+        commands.entity(piece).insert(MovingPiece);
+
+        break;
+    }
+}
+
+pub fn drag_system(
+    buttons: Res<ButtonInput<MouseButton>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    squares: Query<&Transform, With<ChessBoardSquare>>,
+    mut dragging_pieces: Query<
+        (&mut Transform, &Parent),
+        (With<MovingPiece>, Without<ChessBoardSquare>),
+    >,
+) {
+    if !buttons.pressed(MouseButton::Left) {
+        return;
+    }
+
+    let Some(mut cursor_position) = windows.single().cursor_position() else {
+        return;
+    };
+    cursor_position -= windows.single().resolution.size() / 2.;
+    cursor_position.y = -cursor_position.y;
+
+    let Ok((mut transform, parent)) = dragging_pieces.get_single_mut() else {
+        return;
+    };
+
+    let Ok(parent_transform) = squares.get(parent.get()) else {
+        return;
+    };
+
+    let parent_position = parent_transform.translation.truncate();
+
+    transform.translation = Vec3::new(
+        cursor_position.x - parent_position.x,
+        cursor_position.y - parent_position.y,
+        transform.translation.z,
+    );
+}
+
+pub fn drop_system(
+    mut commands: Commands,
+    buttons: Res<ButtonInput<MouseButton>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    squares: Query<(Entity, &Transform, &Sprite), With<ChessBoardSquare>>,
+    mut dragging_pieces: Query<
+        (Entity, &mut Transform, &Parent),
+        (With<MovingPiece>, Without<ChessBoardSquare>),
+    >,
+) {
+    if !buttons.just_released(MouseButton::Left) {
+        return;
+    }
+
+    let Some(mut cursor_position) = windows.single().cursor_position() else {
+        return;
+    };
+    cursor_position -= windows.single().resolution.size() / 2.;
+    cursor_position.y = -cursor_position.y;
+
+    let Ok((entity, mut transform, parent)) = dragging_pieces.get_single_mut() else {
+        return;
+    };
+
+    transform.translation = Vec3::new(0., 0., 1.);
+
+    for (square_entity, target_transform, sprite) in squares.iter() {
+        let position = target_transform.translation.truncate();
+        let size = sprite.custom_size.unwrap();
+        let rect = Rect::from_center_size(position, size);
+
+        if !rect.contains(cursor_position) {
+            continue;
         }
-    } else if buttons.just_released(MouseButton::Left) {
-        'outer: for (entity, _, mut transform, mut draggable) in pieces.iter_mut() {
-            if !draggable.dragging {
-                continue;
-            }
 
-            for (parent, target_transform, sprite) in targets.iter() {
-                let position = target_transform.translation.truncate();
-                let size = sprite.custom_size.unwrap();
-                let rect = Rect::from_center_size(position, size);
+        let mut piece_entity = commands.entity(entity);
 
-                if !rect.contains(cursor_position) {
-                    continue;
-                }
+        piece_entity.remove::<MovingPiece>();
 
-                commands.entity(entity).set_parent(parent);
-                draggable.dragging = false;
-                transform.translation = Vec3::new(0., 0., 1.);
-                break 'outer;
-            }
+        if square_entity != parent.get() {
+            piece_entity.set_parent(square_entity);
         }
+
+        break;
     }
 }
 
@@ -110,18 +175,20 @@ pub fn setup(
     asset_server: Res<AssetServer>,
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
 ) {
-    spawn_chessboard(
-        &mut commands,
-        &palette,
-        &asset_server,
-        &mut texture_atlas_layouts,
-        ChessBoard {
-            position: Vec2::new(0., 0.),
-            orientation: PieceColor::Black,
-            size: 400.,
+    let texture_atlas_layout = TextureAtlasLayout::from_grid(UVec2::splat(45), 6, 2, None, None);
+    let chessboard = ChessBoardBundle {
+        texture: asset_server.load("pieces_spritesheet.png"),
+        font: asset_server.load("Kosefont.ttf"),
+        layout: texture_atlas_layouts.add(texture_atlas_layout),
+        size: ChessBoardSize(400.),
+        spatial: SpatialBundle {
+            transform: Transform::from_xyz(0., 0., 0.),
+            ..default()
         },
-        ChessPosition::from_fen(ChessPosition::DEFAULT_WHITE_FEN),
-    );
+        ..default()
+    };
+
+    spawn_chessboard(&mut commands, &palette, chessboard);
 
     // UI
     commands
@@ -172,25 +239,22 @@ pub fn setup(
 
 fn spawn_chessboard(
     commands: &mut Commands,
-    palette: &Res<ColorPalette>,
-    asset_server: &AssetServer,
-    texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
-    entity: ChessBoard,
-    position: ChessPosition,
+    palette: &ColorPalette,
+    bundle: ChessBoardBundle,
 ) -> Entity {
-    let pieces_texture: Handle<Image> = asset_server.load("pieces_spritesheet.png");
-    let pieces_atlas_layout = TextureAtlasLayout::from_grid(UVec2::splat(45), 6, 2, None, None);
-    let pieces_layout = texture_atlas_layouts.add(pieces_atlas_layout);
+    let ChessBoardBundle {
+        marker,
+        position,
+        orientation,
+        spatial,
+        size,
+        texture,
+        layout,
+        font,
+    } = bundle;
 
-    let tile_size = entity.size / 8.;
-
-    let chessboard = commands
-        .spawn(entity.clone())
-        .insert(SpatialBundle {
-            transform: Transform::from_xyz(entity.position.x, entity.position.y, 0.),
-            ..default()
-        })
-        .id();
+    let chessboard = commands.spawn(marker).insert(spatial).id();
+    let tile_size = size.0 / 8.;
 
     for row in 0..8 {
         for col in 0..8 {
@@ -203,93 +267,98 @@ fn spawn_chessboard(
                 palette.white
             };
 
+            let index = if orientation.0 == PieceColor::White {
+                ((7 - row) * 8) + col
+            } else {
+                (row * 8) + (7 - col)
+            };
+
+            let sprite = SpriteBundle {
+                sprite: Sprite {
+                    color,
+                    custom_size: Some(Vec2::splat(tile_size)),
+                    ..default()
+                },
+                transform: Transform::from_xyz(x, y, 0.0),
+                ..default()
+            };
+
             let board_square = commands
-                .spawn(SpriteBundle {
-                    sprite: Sprite {
-                        color,
-                        custom_size: Some(Vec2::new(tile_size, tile_size)),
-                        ..Default::default()
-                    },
-                    transform: Transform::from_xyz(x, y, 0.0),
-                    ..Default::default()
-                })
-                .insert(Target)
+                .spawn(sprite)
+                .insert(ChessBoardSquare)
                 .set_parent(chessboard)
                 .id();
 
             let board_size = tile_size.clamp(100. / 8., 400. / 8.);
             let sprite_size = (board_size - (100. / 8.)) / (300. / 8.) * 0.7 + 0.4;
 
-            let index = if entity.orientation == PieceColor::White {
-                ((7 - row) * 8) + col
-            } else {
-                (row * 8) + (7 - col)
+            let Some(piece) = position.pieces[index as usize] else {
+                continue;
             };
 
-            if let Some(piece) = position.pieces[index] {
-                commands
-                    .spawn(SpriteBundle {
-                        texture: pieces_texture.clone(),
-                        transform: Transform::from_xyz(0., 0., 1.0)
-                            .with_scale(Vec3::splat(sprite_size)),
-                        ..default()
-                    })
-                    .insert(TextureAtlas {
-                        layout: pieces_layout.clone(),
-                        index: piece.into(),
-                    })
-                    .insert(Draggable::default())
-                    .set_parent(board_square);
-            }
+            let sprite = SpriteBundle {
+                texture: texture.clone(),
+                transform: Transform::from_xyz(0., 0., 1.0).with_scale(Vec3::splat(sprite_size)),
+                ..default()
+            };
+            let texture_atlas = TextureAtlas {
+                layout: layout.clone(),
+                index: piece.into(),
+            };
+
+            commands
+                .spawn(sprite)
+                .insert(texture_atlas)
+                .insert(ChessBoardPiece)
+                .set_parent(board_square);
         }
     }
 
     let mut files = ["A", "B", "C", "D", "E", "F", "G", "H"];
     let mut ranks = ["1", "2", "3", "4", "5", "6", "7", "8"];
 
-    if entity.orientation == PieceColor::Black {
+    if orientation.0 == PieceColor::Black {
         files.reverse();
         ranks.reverse();
     }
 
-    let board_size = entity.size.clamp(100., 400.);
+    let board_size = size.0.clamp(100., 400.);
     let font_size = (board_size - 100.) / 300. * 14. + 10.;
 
     for (i, (file, rank)) in files.iter().zip(ranks.iter()).enumerate() {
         let x = (i as f32 - 3.5) * tile_size;
 
         for y in [tile_size * 4.5, -tile_size * 4.5].into_iter() {
-            commands
-                .spawn(Text2dBundle {
-                    text: Text::from_section(
-                        file.to_owned(),
-                        TextStyle {
-                            font: asset_server.load("Kosefont.ttf"),
-                            color: palette.cyan,
-                            font_size,
-                        },
-                    ),
-                    transform: Transform::from_xyz(x, y, 0.),
-                    ..default()
-                })
-                .set_parent(chessboard);
+            let text_style = TextStyle {
+                font: font.clone(),
+                color: palette.cyan,
+                font_size,
+            };
 
-            commands
-                .spawn(Text2dBundle {
-                    text: Text::from_section(
-                        rank.to_owned(),
-                        TextStyle {
-                            font: asset_server.load("Kosefont.ttf"),
-                            color: palette.cyan,
-                            font_size,
-                        },
-                    ),
-                    transform: Transform::from_xyz(y, x, 0.),
-                    ..default()
-                })
-                .set_parent(chessboard);
+            let text2d_file = Text2dBundle {
+                text: Text::from_section(file.to_owned(), text_style.clone()),
+                transform: Transform::from_xyz(x, y, 0.),
+                ..default()
+            };
+            let text2d_rank = Text2dBundle {
+                text: Text::from_section(rank.to_owned(), text_style.clone()),
+                transform: Transform::from_xyz(y, x, 0.),
+                ..default()
+            };
+
+            commands.spawn(text2d_file).set_parent(chessboard);
+            commands.spawn(text2d_rank).set_parent(chessboard);
         }
     }
+
+    commands
+        .entity(chessboard)
+        .insert(position)
+        .insert(orientation)
+        .insert(size)
+        .insert(texture)
+        .insert(layout)
+        .insert(font);
 
     chessboard
 }

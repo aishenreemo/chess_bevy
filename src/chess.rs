@@ -1,17 +1,31 @@
 use std::fmt::Display;
 
-use bevy::math::Vec2;
-use bevy::prelude::Component;
+use bevy::prelude::*;
 
-#[derive(Component, Clone)]
-pub struct ChessBoard {
-    pub orientation: PieceColor,
-    pub position: Vec2,
-    pub size: f32,
+#[derive(Bundle, Default, Clone)]
+pub struct ChessBoardBundle {
+    pub marker: ChessBoard,
+    pub position: ChessPosition,
+    pub orientation: ChessBoardOrientation,
+    pub spatial: SpatialBundle,
+    pub size: ChessBoardSize,
+    pub texture: Handle<Image>,
+    pub layout: Handle<TextureAtlasLayout>,
+    pub font: Handle<Font>,
 }
 
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+#[derive(Component, Default, Debug, Clone)]
+pub struct ChessBoard;
+
+#[derive(Component, Clone, Debug, Default)]
+pub struct ChessBoardOrientation(pub PieceColor);
+
+#[derive(Component, Default, Clone)]
+pub struct ChessBoardSize(pub f32);
+
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Default)]
 pub enum PieceColor {
+    #[default]
     White = 0,
     Black = 1,
 }
@@ -32,10 +46,16 @@ pub struct ChessPiece {
     pub variant: PieceVariant,
 }
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Clone)]
 pub struct ChessPosition {
     pub pieces: [Option<ChessPiece>; 64],
     pub _turn: PieceColor,
+}
+
+impl Default for ChessPosition {
+    fn default() -> Self {
+        ChessPosition::from_fen(ChessPosition::DEFAULT_WHITE_FEN)
+    }
 }
 
 impl ChessPosition {
@@ -148,8 +168,8 @@ impl Display for ChessPosition {
 
 impl Into<usize> for ChessPiece {
     fn into(self) -> usize {
-        use PieceVariant::*;
         use PieceColor::*;
+        use PieceVariant::*;
 
         match (self.variant, self.color) {
             (King, White) => 0,
