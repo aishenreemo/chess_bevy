@@ -31,6 +31,7 @@ impl Plugin for PagesPlugin {
         app.add_systems(Update, play::button_system);
         app.add_systems(Update, play::pick_system);
         app.add_systems(Update, play::drag_system);
+        app.add_systems(Update, play::place_system);
         app.add_systems(Update, play::drop_system);
         app.add_systems(OnExit(Play), despawn_all);
     }

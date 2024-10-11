@@ -23,6 +23,9 @@ pub struct ChessBoardPiece;
 #[derive(Component)]
 pub struct MovingPiece;
 
+#[derive(Component)]
+pub struct ActivePiece;
+
 pub fn button_system(
     mut buttons: Query<&Interaction, (With<Button>, Changed<Interaction>)>,
     mut next_state: ResMut<NextState<GameState>>,
@@ -80,7 +83,55 @@ pub fn pick_system(
             continue;
         };
 
-        commands.entity(piece).insert(MovingPiece);
+        commands.entity(piece).insert(MovingPiece).insert(ActivePiece);
+
+        break;
+    }
+}
+
+pub fn place_system(
+    mut commands: Commands,
+    buttons: Res<ButtonInput<MouseButton>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    squares: Query<(Entity, &Transform, &Sprite), With<ChessBoardSquare>>,
+    mut active_pieces: Query<
+        (Entity, &mut Transform, &Parent),
+        (With<ActivePiece>, Without<ChessBoardSquare>),
+    >,
+) {
+    if !buttons.just_pressed(MouseButton::Left) {
+        return;
+    }
+
+    let Some(mut cursor_position) = windows.single().cursor_position() else {
+        return;
+    };
+    cursor_position -= windows.single().resolution.size() / 2.;
+    cursor_position.y = -cursor_position.y;
+
+    let Ok((entity, mut transform, parent)) = active_pieces.get_single_mut() else {
+        println!("Missing");
+        return;
+    };
+
+    transform.translation = Vec3::new(0., 0., 1.);
+
+    for (square_entity, square_transform, sprite) in squares.iter() {
+        let position = square_transform.translation.truncate();
+        let size = sprite.custom_size.unwrap();
+        let rect = Rect::from_center_size(position, size);
+
+        if !rect.contains(cursor_position) {
+            continue;
+        }
+
+        let mut piece_entity = commands.entity(entity);
+
+        piece_entity.remove::<ActivePiece>();
+
+        if square_entity != parent.get() {
+            piece_entity.set_parent(square_entity);
+        }
 
         break;
     }
@@ -115,11 +166,8 @@ pub fn drag_system(
 
     let parent_position = parent_transform.translation.truncate();
 
-    transform.translation = Vec3::new(
-        cursor_position.x - parent_position.x,
-        cursor_position.y - parent_position.y,
-        transform.translation.z,
-    );
+    transform.translation.x = cursor_position.x - parent_position.x;
+    transform.translation.y = cursor_position.y - parent_position.y;
 }
 
 pub fn drop_system(
@@ -148,8 +196,8 @@ pub fn drop_system(
 
     transform.translation = Vec3::new(0., 0., 1.);
 
-    for (square_entity, target_transform, sprite) in squares.iter() {
-        let position = target_transform.translation.truncate();
+    for (square_entity, square_transform, sprite) in squares.iter() {
+        let position = square_transform.translation.truncate();
         let size = sprite.custom_size.unwrap();
         let rect = Rect::from_center_size(position, size);
 
@@ -163,6 +211,7 @@ pub fn drop_system(
 
         if square_entity != parent.get() {
             piece_entity.set_parent(square_entity);
+            piece_entity.remove::<ActivePiece>();
         }
 
         break;
