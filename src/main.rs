@@ -23,7 +23,11 @@ fn main() {
         ..default()
     };
 
-    app.add_plugins(DefaultPlugins.set(plugin).set(ImagePlugin::default_nearest()));
+    app.add_plugins(
+        DefaultPlugins
+            .set(plugin)
+            .set(ImagePlugin::default_nearest()),
+    );
     app.add_plugins(CorePlugins);
 
     app.add_systems(PreStartup, setup);

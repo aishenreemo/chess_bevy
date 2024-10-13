@@ -4,7 +4,9 @@ mod play;
 use bevy::app::PluginGroupBuilder;
 use bevy::prelude::*;
 
+use crate::chess::cursor::CursorPositionPlugin;
 use crate::chess::ChessBoard;
+use crate::chess::ChessPlugin;
 use crate::ui::button::ButtonInteractivePlugin;
 use crate::ui::palette::ColorPalettePlugin;
 
@@ -24,15 +26,12 @@ impl Plugin for PagesPlugin {
         app.init_state::<GameState>();
 
         app.add_systems(OnEnter(Home), home::setup);
-        app.add_systems(Update, home::button_system);
+        app.add_systems(Update, home::button_system.run_if(in_state(Home)));
         app.add_systems(OnExit(Home), despawn_all);
 
         app.add_systems(OnEnter(Play), play::setup);
-        app.add_systems(Update, play::button_system);
-        app.add_systems(Update, play::pick_system);
-        app.add_systems(Update, play::drag_system);
-        app.add_systems(Update, play::place_system);
-        app.add_systems(Update, play::drop_system);
+        app.add_systems(Update, play::button_system.run_if(in_state(Play)));
+        app.add_plugins(ChessPlugin(Play));
         app.add_systems(OnExit(Play), despawn_all);
     }
 }
@@ -57,6 +56,7 @@ impl PluginGroup for CorePlugins {
     fn build(self) -> PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
             .add(ButtonInteractivePlugin)
+            .add(CursorPositionPlugin)
             .add(ColorPalettePlugin)
             .add(PagesPlugin)
     }
